@@ -8,15 +8,21 @@ import httpx
 
 
 class OpenAICompatibleClient:
-    def __init__(self, *, base_url_envs: list[str] | None = None) -> None:
-        self.api_key = os.getenv("OPENAI_API_KEY", "") or os.getenv("DGA_LLM_API_KEY", "")
+    def __init__(self, *, base_url_envs: list[str] | None = None, api_key_envs: list[str] | None = None) -> None:
+        api_key = ""
+        for key in api_key_envs or []:
+            value = os.getenv(key, "")
+            if value:
+                api_key = value
+                break
+        self.api_key = api_key or os.getenv("OPENAI_API_KEY", "") or os.getenv("DGA_LLM_API_KEY", "")
         base_url = ""
         for key in base_url_envs or []:
             value = os.getenv(key, "")
             if value:
                 base_url = value
                 break
-        self.base_url = base_url or os.getenv("OPENAI_BASE_URL", "") or os.getenv("LLM_BASE_URL", "") or "https://api.openai.com/v1"
+        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL", "") or os.getenv("LLM_BASE_URL", "") or "https://api.openai.com/v1").rstrip("/")
         self.timeout = float(os.getenv("LLM_HTTP_TIMEOUT", "120"))
         self.max_retries = int(os.getenv("LLM_HTTP_MAX_RETRIES", "2"))
         self.trust_env = os.getenv("HTTPX_TRUST_ENV", "true").lower() in {"1", "true", "yes", "on"}
