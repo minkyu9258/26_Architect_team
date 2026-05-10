@@ -1,0 +1,81 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      CORS_ORIGINS: "*"
+      LLM_PROVIDER: ${LLM_PROVIDER:-mock}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-https://api.openai.com/v1}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_ROLE_INTENT_MODEL: ${LLM_ROLE_INTENT_MODEL:-gpt-4.1-mini}
+      LLM_ROLE_PLANNER_MODEL: ${LLM_ROLE_PLANNER_MODEL:-gpt-4.1}
+      LLM_ROLE_SUMMARY_MODEL: ${LLM_ROLE_SUMMARY_MODEL:-gpt-4.1-mini}
+      EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-openai}
+      EMBED_BASE_URL: ${EMBED_BASE_URL:-}
+      EMBED_MODEL_NAME: ${EMBED_MODEL_NAME:-}
+      EMBEDDING_DIM: ${EMBEDDING_DIM:-1024}
+      VECTOR_STORE_PROVIDER: ${VECTOR_STORE_PROVIDER:-pgvector}
+      VECTOR_DB_DSN: ${VECTOR_DB_DSN:-postgresql://postgres:postgres@vector-db:5432/mdm}
+      RAG_ENABLED: ${RAG_ENABLED:-true}
+      RAG_TOP_K: ${RAG_TOP_K:-4}
+      RAG_MIN_SCORE: ${RAG_MIN_SCORE:-0.35}
+      RAG_AUTO_INGEST: ${RAG_AUTO_INGEST:-true}
+      RAG_INGEST_CHUNK_SIZE: ${RAG_INGEST_CHUNK_SIZE:-900}
+      RAG_INGEST_CHUNK_OVERLAP: ${RAG_INGEST_CHUNK_OVERLAP:-120}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      RAG_CACHE_TTL_SEC: ${RAG_CACHE_TTL_SEC:-600}
+    ports:
+      - "8080:8080"
+    depends_on:
+      - vector-db
+      - redis
+      - jira-agent
+      - github-agent
+      - cloud-agent
+      - mdm-agent
+
+  vector-db:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: mdm
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+
+  redis:
+    image: redis:7-alpine
+
+  jira-agent:
+    build:
+      context: .
+      dockerfile: backend/apps/agents/jira_agent/Dockerfile
+
+  github-agent:
+    build:
+      context: .
+      dockerfile: backend/apps/agents/github_agent/Dockerfile
+
+  cloud-agent:
+    build:
+      context: .
+      dockerfile: backend/apps/agents/cloud_agent/Dockerfile
+
+  mdm-agent:
+    build:
+      context: .
+      dockerfile: backend/apps/agents/mdm_agent/Dockerfile
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    environment:
+      API_UPSTREAM: http://backend:8080
+    ports:
+      - "5174:80"
+      - "3000:80"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
